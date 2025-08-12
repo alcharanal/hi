@@ -10,7 +10,7 @@ const AuthService = require('./auth');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const SECRET_KEY = process.env.SECRET_KEY || 'your-super-secret-key-change-this-in-production';
 
 // Initialize auth service
