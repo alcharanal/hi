@@ -79,6 +79,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
+// Setup API documentation
+setupSwagger(app);
+
 // Database setup
 const dbPath = path.join(__dirname, 'anon_connect.db');
 const db = new sqlite3.Database(dbPath);
