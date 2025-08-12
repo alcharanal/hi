@@ -271,11 +271,16 @@ app.post('/auth/register', async (req, res) => {
   }
 });
 
-// User login
-app.post('/auth/login', (req, res) => {
+// Enhanced user login with rate limiting
+app.post('/auth/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    let { username, password } = req.body;
+    const clientIP = req.ip || req.connection.remoteAddress;
 
+    // Sanitize inputs
+    username = authService.sanitizeInput(username);
+
+    // Basic validation
     if (!username || !password) {
       return res.status(400).json({
         success: false,
@@ -283,48 +288,74 @@ app.post('/auth/login', (req, res) => {
       });
     }
 
-    db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: 'Database error during login'
-        });
-      }
-
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid username or password'
-        });
-      }
-
-      const validPassword = await bcrypt.compare(password, user.password_hash);
-      if (!validPassword) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid username or password'
-        });
-      }
-
-      if (!user.is_active) {
-        return res.status(401).json({
-          success: false,
-          message: 'User account is inactive'
-        });
-      }
-
-      const token = jwt.sign(
-        { userId: user.id, username: user.username },
-        SECRET_KEY,
-        { expiresIn: '30m' }
-      );
-
-      res.json({
-        access_token: token,
-        token_type: 'bearer'
+    // Check rate limiting
+    const rateCheck = authService.checkRateLimit(clientIP);
+    if (!rateCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        message: `Too many login attempts. Please try again in ${rateCheck.lockoutTimeMin} minutes.`,
+        lockoutTimeMs: rateCheck.lockoutTimeMs
       });
+    }
+
+    // Get user
+    const user = await authService.getUserByUsername(username);
+
+    if (!user) {
+      authService.recordLoginAttempt(clientIP);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid username or password'
+      });
+    }
+
+    // Verify password
+    const validPassword = await authService.verifyPassword(password, user.password_hash);
+    if (!validPassword) {
+      authService.recordLoginAttempt(clientIP);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid username or password'
+      });
+    }
+
+    if (!user.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: 'User account is inactive'
+      });
+    }
+
+    // Clear login attempts on successful login
+    authService.clearLoginAttempts(clientIP);
+
+    // Generate tokens
+    const accessToken = authService.generateAccessToken(user.id, user.username);
+    const refreshToken = authService.generateRefreshToken(user.id, user.username);
+
+    // Store refresh token
+    await authService.storeRefreshToken(user.id, refreshToken);
+
+    // Update last login
+    await authService.updateLastLogin(user.id);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token_type: 'bearer',
+      expires_in: '1h',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        anonymous_name: user.anonymous_name
+      }
     });
+
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error during login'
