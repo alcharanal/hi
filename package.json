@@ -5,9 +5,11 @@
   "main": "server.js",
   "scripts": {
     "dev": "NODE_ENV=development node server.js",
-    "start": "NODE_ENV=development node server.js",
+    "start": "node startup-check.js && NODE_ENV=development node server.js",
+    "start:fast": "NODE_ENV=development node server.js",
     "prod": "NODE_ENV=production node server.js",
-    "test": "node test-suite.js"
+    "test": "node test-suite.js",
+    "check": "node startup-check.js"
   },
   "dependencies": {
     "bad-words": "^3.0.4",
