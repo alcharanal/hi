@@ -678,6 +678,390 @@ app.get('/chat/stats', (req, res) => {
   });
 });
 
+// =============================================================================
+// ADMIN ROUTES
+// =============================================================================
+
+// Admin authentication middleware
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No authorization token provided'
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const admin = await adminService.verifyToken(token);
+
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    req.admin = admin;
+    next();
+  } catch (error) {
+    console.error('Admin authentication error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Authentication failed'
+    });
+  }
+};
+
+// Admin login
+app.post('/admin/login', async (req, res) => {
+  try {
+    const { username, password, ipAddress } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and password are required'
+      });
+    }
+
+    const result = await adminService.login(username, password, {
+      ipAddress: ipAddress || req.ip,
+      userAgent: req.headers['user-agent']
+    });
+
+    if (result.success) {
+      res.json({
+        success: true,
+        token: result.token,
+        admin: result.admin,
+        message: 'Login successful'
+      });
+    } else {
+      res.status(401).json(result);
+    }
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Admin token verification
+app.get('/admin/verify', authenticateAdmin, (req, res) => {
+  res.json({
+    success: true,
+    admin: req.admin,
+    message: 'Token valid'
+  });
+});
+
+// Admin logout
+app.post('/admin/logout', authenticateAdmin, async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.substring(7);
+
+    await adminService.logout(token);
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Admin logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed'
+    });
+  }
+});
+
+// Dashboard statistics
+app.get('/admin/stats', authenticateAdmin, async (req, res) => {
+  try {
+    const stats = await adminService.getDashboardStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching statistics'
+    });
+  }
+});
+
+// User management
+app.get('/admin/users', authenticateAdmin, async (req, res) => {
+  try {
+    const { filter = 'all', page = 1, limit = 50 } = req.query;
+    const users = await adminService.getUsers(filter, parseInt(page), parseInt(limit));
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching users'
+    });
+  }
+});
+
+app.get('/admin/users/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const user = await adminService.getUserDetails(req.params.id);
+    if (user) {
+      res.json(user);
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user details'
+    });
+  }
+});
+
+app.post('/admin/users/ban', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId, reason } = req.body;
+    const result = await adminService.banUser(userId, reason, req.admin.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error banning user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error banning user'
+    });
+  }
+});
+
+app.post('/admin/users/unban', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const result = await adminService.unbanUser(userId, req.admin.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error unbanning user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error unbanning user'
+    });
+  }
+});
+
+app.delete('/admin/users/delete', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const result = await adminService.deleteUser(userId, req.admin.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting user'
+    });
+  }
+});
+
+app.get('/admin/users/export', authenticateAdmin, async (req, res) => {
+  try {
+    const { format = 'csv' } = req.query;
+    const exportData = await adminService.exportUsers(format);
+
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=users_export.csv');
+    } else {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename=users_export.json');
+    }
+
+    res.send(exportData);
+  } catch (error) {
+    console.error('Error exporting users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error exporting users'
+    });
+  }
+});
+
+// Chat management
+app.get('/admin/chats/active', authenticateAdmin, async (req, res) => {
+  try {
+    const chats = await adminService.getActiveChats();
+    res.json(chats);
+  } catch (error) {
+    console.error('Error fetching active chats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching active chats'
+    });
+  }
+});
+
+app.get('/admin/chats/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const chat = await adminService.getChatDetails(req.params.id);
+    if (chat) {
+      res.json(chat);
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Chat not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching chat details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching chat details'
+    });
+  }
+});
+
+app.post('/admin/chats/terminate', authenticateAdmin, async (req, res) => {
+  try {
+    const { chatId, reason } = req.body;
+    const result = await adminService.terminateChat(chatId, reason, req.admin.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error terminating chat:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error terminating chat'
+    });
+  }
+});
+
+// Reports management
+app.get('/admin/reports', authenticateAdmin, async (req, res) => {
+  try {
+    const reports = await adminService.getReports();
+    res.json(reports);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching reports'
+    });
+  }
+});
+
+app.get('/admin/reports/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const report = await adminService.getReportDetails(req.params.id);
+    if (report) {
+      res.json(report);
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Report not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching report details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching report details'
+    });
+  }
+});
+
+app.post('/admin/reports/:id/resolve', authenticateAdmin, async (req, res) => {
+  try {
+    const result = await adminService.resolveReport(req.params.id, req.admin.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error resolving report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error resolving report'
+    });
+  }
+});
+
+// System monitoring
+app.get('/admin/system/health', authenticateAdmin, async (req, res) => {
+  try {
+    const health = await monitoringService.getSystemHealth();
+    res.json(health);
+  } catch (error) {
+    console.error('Error fetching system health:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching system health'
+    });
+  }
+});
+
+app.get('/admin/system/metrics', authenticateAdmin, async (req, res) => {
+  try {
+    const metrics = await monitoringService.getSystemMetrics();
+    res.json(metrics);
+  } catch (error) {
+    console.error('Error fetching system metrics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching system metrics'
+    });
+  }
+});
+
+// Activity feed
+app.get('/admin/activity/recent', authenticateAdmin, async (req, res) => {
+  try {
+    const activities = await adminService.getRecentActivity();
+    res.json(activities);
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching recent activity'
+    });
+  }
+});
+
+// Analytics
+app.get('/admin/analytics', authenticateAdmin, async (req, res) => {
+  try {
+    const analytics = await adminService.getAnalytics();
+    res.json(analytics);
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching analytics'
+    });
+  }
+});
+
+// Audit log
+app.get('/admin/audit', authenticateAdmin, async (req, res) => {
+  try {
+    const auditLog = await adminService.getAuditLog();
+    res.json(auditLog);
+  } catch (error) {
+    console.error('Error fetching audit log:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching audit log'
+    });
+  }
+});
+
+// =============================================================================
+// END ADMIN ROUTES
+// =============================================================================
+
 // Start server with Socket.io
 server.listen(PORT, () => {
   console.log(`🚀 Anon-Connect server running on http://localhost:${PORT}`);
