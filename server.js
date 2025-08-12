@@ -29,6 +29,8 @@ const SECRET_KEY = process.env.SECRET_KEY || 'your-super-secret-key-change-this-
 // Initialize services
 const authService = new AuthService();
 const connectionManager = new ConnectionManager();
+const adminService = new AdminService();
+const monitoringService = new MonitoringService();
 
 // Security middleware
 app.use(helmet({
