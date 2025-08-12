@@ -318,19 +318,11 @@
                         'Authorization': `Bearer ${authToken}`
                     }
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
-                    const userDetails = document.getElementById('user-details');
-                    userDetails.innerHTML = `
-                        <div class="anonymous-name">Anonymous Name: ${data.user.anonymous_name}</div>
-                        <div>Username: ${data.user.username}</div>
-                        <div>Email: ${data.user.email}</div>
-                        <div>Member since: ${new Date(data.user.created_at).toLocaleDateString()}</div>
-                    `;
-                    
-                    document.getElementById('auth-form').style.display = 'none';
-                    document.getElementById('dashboard').style.display = 'block';
+                    // Redirect to chat interface after successful authentication
+                    window.location.href = '/chat.html';
                 } else {
                     logout();
                 }
