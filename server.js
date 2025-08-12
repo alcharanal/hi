@@ -176,10 +176,14 @@ app.get('/', (req, res) => {
   });
 });
 
-// User registration
+// Enhanced user registration
 app.post('/auth/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    let { username, email, password } = req.body;
+
+    // Sanitize inputs
+    username = authService.sanitizeInput(username);
+    email = authService.sanitizeInput(email);
 
     // Basic validation
     if (!username || !email || !password) {
@@ -189,72 +193,77 @@ app.post('/auth/register', async (req, res) => {
       });
     }
 
-    if (password.length < 6) {
+    // Validate username
+    const usernameValidation = authService.validateUsername(username);
+    if (!usernameValidation.isValid) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters long'
+        message: 'Invalid username',
+        errors: usernameValidation.errors
       });
     }
 
-    // Check if user already exists
-    db.get('SELECT id FROM users WHERE username = ? OR email = ?', [username, email], async (err, existingUser) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: 'Database error during user check'
-        });
-      }
+    // Validate email
+    if (!authService.validateEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format'
+      });
+    }
 
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'Username or email already exists'
-        });
-      }
+    // Validate password strength
+    const passwordValidation = authService.validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password does not meet security requirements',
+        errors: passwordValidation.errors
+      });
+    }
 
-      // Generate unique anonymous name
-      const generateUniqueAnonymousName = async () => {
-        const name = generateAnonymousName();
-        return new Promise((resolve) => {
-          db.get('SELECT id FROM users WHERE anonymous_name = ?', [name], (err, existing) => {
-            if (existing) {
-              resolve(generateUniqueAnonymousName());
-            } else {
-              resolve(name);
-            }
-          });
-        });
-      };
+    // Check if username exists
+    const usernameExists = await authService.checkUsernameExists(username);
+    if (usernameExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username already taken'
+      });
+    }
 
-      const anonymousName = await generateUniqueAnonymousName();
-      const passwordHash = await bcrypt.hash(password, 10);
+    // Check if email exists
+    const emailExists = await authService.checkEmailExists(email);
+    if (emailExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
 
-      // Insert new user
-      db.run(
-        'INSERT INTO users (username, email, password_hash, anonymous_name) VALUES (?, ?, ?, ?)',
-        [username, email, passwordHash, anonymousName],
-        function(err) {
-          if (err) {
-            return res.status(500).json({
-              success: false,
-              message: 'Error creating user'
-            });
-          }
+    // Generate unique anonymous name and hash password
+    const anonymousName = await authService.generateUniqueAnonymousName();
+    const passwordHash = await authService.hashPassword(password);
 
-          res.status(201).json({
-            success: true,
-            message: 'User registered successfully',
-            user: {
-              id: this.lastID,
-              username,
-              email,
-              anonymous_name: anonymousName
-            }
-          });
-        }
-      );
+    // Create user
+    const newUser = await authService.createUser({
+      username,
+      email,
+      passwordHash,
+      anonymousName
     });
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        anonymous_name: newUser.anonymous_name
+      }
+    });
+
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error during registration'
