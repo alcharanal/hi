@@ -1106,8 +1106,10 @@ server.listen(PORT, () => {
   console.log(`   GET  /admin/stats - Admin dashboard stats`);
   console.log(`   GET  /db/status - Database status`);
   console.log(`   GET  /chat/stats - Chat system statistics`);
+  console.log(`   GET  /api/docs - API documentation (Swagger)`);
   console.log(`🔌 WebSocket server ready for connections`);
   console.log(`🔐 Admin credentials: admin123 / admin321`);
+  console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
 });
 
 // Graceful shutdown
