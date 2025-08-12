@@ -566,7 +566,14 @@ io.on('connection', (socket) => {
   const userId = socket.userId;
   const userProfile = socket.userProfile;
 
-  console.log(`Socket connected: ${userProfile.anonymousName} (${userId})`);
+  errorHandler.log('INFO', `Socket connected: ${userProfile.anonymousName} (${userId})`, {
+    socketId: socket.id,
+    userId: userId,
+    anonymousName: userProfile.anonymousName
+  });
+
+  // Setup socket error handling
+  errorHandler.socketErrorHandler(socket);
 
   // Add connection to manager
   connectionManager.addConnection(userId, socket, userProfile);
