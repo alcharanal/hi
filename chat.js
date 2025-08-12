@@ -531,13 +531,82 @@ class ConnectionManager {
         }
     }
 
+    // AI-related methods
+    async sendAIInsights(userId, roomId) {
+        try {
+            const insights = await this.aiService.generateInsights(roomId, userId);
+            if (insights.length > 0) {
+                const socket = this.connections.get(userId);
+                if (socket) {
+                    socket.emit('aiInsights', { insights });
+                }
+            }
+        } catch (error) {
+            console.error('Error sending AI insights:', error);
+        }
+    }
+
+    async updateCompatibilityScore(user1Id, user2Id, roomId) {
+        try {
+            const compatibility = await this.aiService.calculateCompatibility(user1Id, user2Id, roomId);
+            if (compatibility) {
+                // Send to both users
+                [user1Id, user2Id].forEach(userId => {
+                    const socket = this.connections.get(userId);
+                    if (socket) {
+                        socket.emit('compatibilityUpdate', {
+                            score: compatibility.overall,
+                            components: compatibility.components,
+                            confidence: compatibility.confidence
+                        });
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error updating compatibility score:', error);
+        }
+    }
+
+    async getMoodAnalysis(userId, roomId) {
+        try {
+            const room = this.rooms.get(roomId);
+            if (!room) return null;
+
+            // Get recent messages from this user
+            const userMessages = room.messages
+                .filter(msg => msg.senderId === userId)
+                .slice(-5); // Last 5 messages
+
+            return this.aiService.generateMoodAnalysis(userId, userMessages, roomId);
+        } catch (error) {
+            console.error('Error getting mood analysis:', error);
+            return null;
+        }
+    }
+
+    getTopicSuggestions(roomId, context = 'icebreaker') {
+        return this.aiService.getTopicSuggestions(roomId, context);
+    }
+
+    setUserPrivacySettings(userId, settings) {
+        this.aiService.setPrivacySettings(userId, settings);
+    }
+
+    getUserPrivacySettings(userId) {
+        return this.aiService.getPrivacySettings(userId);
+    }
+
     // Statistics and monitoring
     getStats() {
+        const aiStats = this.aiService.getAPIUsageStats();
         return {
             connectedUsers: this.connections.size,
             activeRooms: this.rooms.size,
             waitingQueue: this.waitingQueue.length,
-            totalMessages: Array.from(this.rooms.values()).reduce((sum, room) => sum + room.messages.length, 0)
+            totalMessages: Array.from(this.rooms.values()).reduce((sum, room) => sum + room.messages.length, 0),
+            aiAnalyses: aiStats.calls,
+            aiTokens: aiStats.tokens,
+            aiCost: aiStats.cost
         };
     }
 }
