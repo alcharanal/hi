@@ -4,8 +4,10 @@
   "description": "Anonymous Chat Platform",
   "main": "server.js",
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js"
+    "dev": "NODE_ENV=development node server.js",
+    "start": "NODE_ENV=development node server.js",
+    "prod": "NODE_ENV=production node server.js",
+    "test": "node test-suite.js"
   },
   "dependencies": {
     "bad-words": "^3.0.4",
