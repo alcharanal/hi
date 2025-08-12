@@ -1118,7 +1118,22 @@
 
     <!-- Socket.io Client -->
     <script src="/socket.io/socket.io.js"></script>
+    <script src="ui-enhancements.js"></script>
     <script src="chat-client.js"></script>
+
+    <script>
+        // Connect accessibility toggle button
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessibilityToggle = document.getElementById('accessibility-toggle');
+            if (accessibilityToggle) {
+                accessibilityToggle.addEventListener('click', () => {
+                    if (window.uiEnhancementManager) {
+                        window.uiEnhancementManager.toggleAccessibilityMenu();
+                    }
+                });
+            }
+        });
+    </script>
     <script src="ai-insights.js"></script>
 </body>
 </html>
