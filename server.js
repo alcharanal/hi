@@ -49,6 +49,9 @@ const generalLimiter = rateLimit({
   }
 });
 
+// Trust proxy for rate limiting
+app.set('trust proxy', 1);
+
 // Apply rate limiting
 app.use('/auth', authLimiter);
 app.use(generalLimiter);
