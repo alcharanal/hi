@@ -137,9 +137,10 @@ class SecurityConfig {
             general: slowDown({
                 windowMs: 15 * 60 * 1000, // 15 minutes
                 delayAfter: this.isProduction ? 50 : 200, // allow full speed for first requests
-                delayMs: 500, // slow down by 500ms per request after delayAfter
+                delayMs: () => 500, // Updated for express-slow-down v2+ compatibility
                 maxDelayMs: 10000, // maximum delay of 10 seconds
-                skipSuccessfulRequests: false
+                skipSuccessfulRequests: false,
+                validate: { delayMs: false } // Disable deprecation warning
             })
         };
     }
