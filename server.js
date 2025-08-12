@@ -364,31 +364,134 @@ app.post('/auth/login', async (req, res) => {
 });
 
 // Get current user info
-app.get('/auth/me', authenticateToken, (req, res) => {
-  db.get('SELECT id, username, email, anonymous_name, created_at, is_active FROM users WHERE id = ?', 
-    [req.user.userId], 
-    (err, user) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: 'Database error'
-        });
-      }
+app.get('/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await authService.getUserById(req.user.userId);
 
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'User information retrieved successfully',
-        user
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
-  );
+
+    res.json({
+      success: true,
+      message: 'User information retrieved successfully',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        anonymous_name: user.anonymous_name,
+        created_at: user.created_at,
+        is_active: user.is_active
+      }
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database error'
+    });
+  }
+});
+
+// Refresh token endpoint
+app.post('/auth/refresh', async (req, res) => {
+  try {
+    const { refresh_token } = req.body;
+
+    if (!refresh_token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    // Verify refresh token signature
+    const decoded = await authService.verifyRefreshToken(refresh_token);
+
+    // Validate refresh token in database
+    const tokenRecord = await authService.validateRefreshToken(refresh_token);
+    if (!tokenRecord) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
+    // Get user
+    const user = await authService.getUserById(decoded.userId);
+    if (!user || !user.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found or inactive'
+      });
+    }
+
+    // Generate new access token
+    const newAccessToken = authService.generateAccessToken(user.id, user.username);
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      access_token: newAccessToken,
+      token_type: 'bearer',
+      expires_in: '1h'
+    });
+
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid or expired refresh token'
+    });
+  }
+});
+
+// Logout endpoint
+app.post('/auth/logout', authenticateToken, async (req, res) => {
+  try {
+    const { refresh_token } = req.body;
+
+    if (refresh_token) {
+      // Revoke the specific refresh token
+      await authService.revokeRefreshToken(refresh_token);
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error during logout'
+    });
+  }
+});
+
+// Logout from all devices
+app.post('/auth/logout-all', authenticateToken, async (req, res) => {
+  try {
+    // Revoke all refresh tokens for the user
+    const revokedCount = await authService.revokeAllUserTokens(req.user.userId);
+
+    res.json({
+      success: true,
+      message: `Logged out from all devices successfully`,
+      revoked_tokens: revokedCount
+    });
+
+  } catch (error) {
+    console.error('Logout all error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error during logout from all devices'
+    });
+  }
 });
 
 // Database status
