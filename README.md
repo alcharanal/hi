@@ -1,40 +1,72 @@
 # Anon-Connect: Anonymous Chat Platform
 
-🚀 **Step 1 Complete**: Foundation & Database Setup (Node.js Implementation)
+🚀 **Steps 1 & 2 Complete**: Foundation, Database & Enhanced Authentication
 
-A Node.js Express-based anonymous chat platform that allows users to connect and chat anonymously with fun generated usernames.
+A Node.js Express-based anonymous chat platform with comprehensive authentication and security features.
 
 ## 🏗️ Architecture Overview
 
 - **Backend**: Node.js with Express.js
-- **Database**: SQLite with sqlite3 driver
-- **Authentication**: JWT-based with bcryptjs password hashing
-- **Frontend**: HTML/CSS/JavaScript interface
+- **Database**: SQLite with sqlite3 driver + Refresh token storage
+- **Authentication**: Enhanced JWT-based with refresh tokens
+- **Security**: Rate limiting, helmet security headers, input validation
+- **Frontend**: Modern responsive HTML/CSS/JavaScript with dark theme
 - **Anonymous Names**: Auto-generated fun names like "ChattyCat123"
 
 ## 📁 Project Structure
 
 ```
 anon-connect/
-├── server.js         # Express application & API routes
-├── package.json      # Node.js dependencies and scripts
+├── server.js         # Enhanced Express app with security middleware
+├── auth.js          # Authentication service with advanced features
+├── package.json     # Dependencies including security packages
 ├── public/
-│   └── index.html    # Frontend interface
-├── .env             # Environment configuration
-├── anon_connect.db  # SQLite database (auto-created)
-└── README.md        # This file
+│   ├── index.html   # Original simple interface
+│   ├── auth.html    # Modern authentication interface
+│   └── auth.js      # Enhanced frontend authentication
+├── .env            # Environment configuration
+├── anon_connect.db # SQLite database (auto-created)
+└── README.md       # This file
 ```
 
-## 🗄️ Database Schema
+## 🔐 Enhanced Authentication Features
+
+### Step 2 New Features
+- **🔑 JWT Refresh Tokens**: 1-hour access tokens + 7-day refresh tokens
+- **🛡️ Password Strength Validation**: 8+ chars, mixed case, numbers, special chars
+- **🚫 Rate Limiting**: Login attempt protection (5 attempts per 15 min)
+- **🔒 Security Headers**: Helmet.js protection against common attacks
+- **✅ Real-time Validation**: Live form validation with visual feedback
+- **🌙 Dark Theme Support**: Toggle between light and dark modes
+- **📱 Mobile Responsive**: Optimized for all device sizes
+- **🔄 Auto Token Refresh**: Background token renewal for seamless experience
+
+### Enhanced Security Measures
+- **Input Sanitization**: XSS protection and input cleaning
+- **SQL Injection Protection**: Parameterized queries
+- **CORS Configuration**: Configurable origin restrictions
+- **Trust Proxy Setup**: Proper rate limiting in cloud environments
+- **Password Hashing**: Enhanced bcrypt with 12 salt rounds
+
+## 🗄️ Database Schema (Enhanced)
 
 ### Users Table
 - `id`: Primary key (auto-increment)
-- `username`: Unique username
-- `email`: Unique email address
-- `password_hash`: bcryptjs hashed password
+- `username`: Unique username (3-20 chars, alphanumeric + underscore)
+- `email`: Unique email address (validated format)
+- `password_hash`: bcryptjs hashed password (12 salt rounds)
 - `anonymous_name`: Fun generated name (e.g., "SilentWolf456")
 - `created_at`: Account creation timestamp
+- `last_login`: Last login timestamp
 - `is_active`: Account status (boolean)
+
+### Refresh Tokens Table (New)
+- `id`: Primary key (auto-increment)
+- `user_id`: Foreign key to users table
+- `token`: Unique refresh token string
+- `expires_at`: Token expiration timestamp (7 days)
+- `created_at`: Token creation timestamp
+- `is_active`: Token status (boolean)
 
 ### Chats Table
 - `id`: Primary key (auto-increment)
@@ -52,171 +84,168 @@ anon-connect/
 - `timestamp`: Message time
 - `is_encrypted`: Encryption flag for future use
 
-## 🔧 Installation & Setup
+## 🌐 Frontend Interfaces
 
-### 1. Install Dependencies
-```bash
-npm install
-```
+### 1. Modern Authentication Interface (`/auth.html`)
+**New Enhanced Features:**
+- **Beautiful UI**: Modern gradient design with glassmorphism effects
+- **Dark/Light Theme**: Toggle with persistent preference
+- **Real-time Validation**: Live feedback for username, email, password
+- **Password Strength Meter**: Visual strength indicator with requirements
+- **Responsive Design**: Mobile-first approach with fluid layouts
+- **Form States**: Loading animations, success/error states
+- **Accessibility**: ARIA labels and keyboard navigation
 
-### 2. Environment Configuration
-The `.env` file contains:
-```env
-SECRET_KEY=your-super-secret-key-change-this-in-production
-PORT=3000
-```
+### 2. Original Simple Interface (`/index.html`)
+- Basic authentication forms
+- User dashboard
+- API endpoint listing
 
-### 3. Start the Server
-```bash
-npm run dev
-# or
-npm start
-```
-
-The server will start on `http://localhost:3000`
-
-## 🌐 Frontend Interface
-
-The application includes a complete web interface at `http://localhost:3000` featuring:
-
-- **User Registration** - Create new account with username, email, password
-- **User Login** - Authenticate existing users
-- **Dashboard** - View user profile with anonymous name
-- **API Explorer** - List of available endpoints
-
-### Key Features:
-- 🎨 Modern, responsive design with gradient backgrounds
-- 🔐 Secure authentication with JWT tokens
-- 📱 Mobile-friendly interface
-- ⚡ Real-time form validation
-- 🎭 Anonymous name display
-- 💾 Persistent login with localStorage
-
-## 🛠️ API Endpoints
+## 🛠️ Enhanced API Endpoints
 
 ### Health & Status
 - `GET /` - Welcome message and API info
 - `GET /health` - Health check endpoint
 - `GET /db/status` - Database connection status
 
-### Authentication
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - Login user (returns JWT token)
+### Authentication (Enhanced)
+- `POST /auth/register` - User registration with validation
+- `POST /auth/login` - Enhanced login with rate limiting
+- `POST /auth/refresh` - Refresh access token
+- `POST /auth/logout` - Logout and revoke refresh token
+- `POST /auth/logout-all` - Logout from all devices
 - `GET /auth/me` - Get current user info (requires auth)
 
-### Example API Usage
+### Enhanced Registration Validation
+```json
+{
+  "username": "johndoe",      // 3-20 chars, alphanumeric + underscore
+  "email": "john@example.com", // Valid email format
+  "password": "SecurePass123!" // 8+ chars, mixed case, numbers, special
+}
+```
 
-#### Register User
-```bash
-curl -X POST "http://localhost:3000/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
+### Enhanced Login Response
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "expires_in": "1h",
+  "user": {
+    "id": 1,
     "username": "johndoe",
     "email": "john@example.com",
-    "password": "secretpassword123"
-  }'
+    "anonymous_name": "SilentWolf456"
+  }
+}
 ```
 
-#### Login User
-```bash
-curl -X POST "http://localhost:3000/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "johndoe",
-    "password": "secretpassword123"
-  }'
-```
+## 🔒 Advanced Security Features
 
-#### Get User Info (with token)
-```bash
-curl -X GET "http://localhost:3000/auth/me" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
+### Rate Limiting
+- **Authentication Routes**: 10 requests per 15 minutes per IP
+- **General Routes**: 100 requests per 15 minutes per IP
+- **Login Attempts**: 5 failed attempts = 15-minute lockout
+- **Progressive Lockout**: Longer lockouts for repeated violations
 
-## 🔒 Security Features
+### Password Security
+- **Minimum Requirements**: 8+ characters
+- **Complexity**: Lowercase + uppercase + numbers + special characters
+- **Hashing**: bcrypt with 12 salt rounds
+- **Validation**: Real-time strength checking
 
-- **Password Hashing**: bcryptjs with salt rounds
-- **JWT Authentication**: Secure token-based auth (30 min expiry)
-- **Input Validation**: Server-side validation for all inputs
-- **CORS Protection**: Configurable CORS middleware
-- **Anonymous Names**: Privacy-focused username generation
-- **SQL Injection Protection**: Parameterized queries with sqlite3
+### Input Validation & Sanitization
+- **Username**: 3-20 chars, alphanumeric + underscore only
+- **Email**: RFC-compliant email validation
+- **XSS Protection**: Input sanitization and HTML entity encoding
+- **Length Limits**: All inputs capped at reasonable maximums
 
-## 🎯 Anonymous Name Generator
+### Security Headers (Helmet.js)
+- Content Security Policy (CSP)
+- X-Content-Type-Options: nosniff
+- X-Frame-Options: DENY
+- X-XSS-Protection: 1; mode=block
+- Strict-Transport-Security (HSTS)
 
-The system generates fun, unique anonymous names using:
-- **25 Adjectives**: Silent, Mysterious, Chatty, Friendly, Cool, Smart, Quick, Clever, Bright, Swift, Bold, Calm, Wild, Free, Happy, Lucky, Magic, Sunny, Gentle, Brave, Noble, Wise, Kind, Pure, Strong
-- **26 Animals**: Cat, Dog, Wolf, Fox, Bear, Lion, Tiger, Eagle, Hawk, Owl, Rabbit, Deer, Dolphin, Whale, Shark, Turtle, Dragon, Phoenix, Panda, Koala, Penguin, Seal, Otter, Falcon, Raven, Swan
-- **3-digit Numbers**: Random numbers from 100-999
+## 🎯 Anonymous Name Generator (Enhanced)
 
-Examples: `ChattyCat123`, `SilentWolf456`, `FriendlyDolphin789`
+**34 Adjectives**: Silent, Mysterious, Chatty, Friendly, Cool, Smart, Quick, Clever, Bright, Swift, Bold, Calm, Wild, Free, Happy, Lucky, Magic, Sunny, Gentle, Brave, Noble, Wise, Kind, Pure, Strong, Sleek, Fierce, Graceful, Mighty, Serene, Vibrant, Elegant, Daring, Radiant
 
-## 🧪 Features Implemented
+**34 Animals**: Cat, Dog, Wolf, Fox, Bear, Lion, Tiger, Eagle, Hawk, Owl, Rabbit, Deer, Dolphin, Whale, Shark, Turtle, Dragon, Phoenix, Panda, Koala, Penguin, Seal, Otter, Falcon, Raven, Swan, Leopard, Cheetah, Jaguar, Lynx, Panther, Cobra, Viper, Mamba
 
-✅ **Core Infrastructure**
-- Express.js server with proper middleware
-- SQLite database with auto-table creation
-- JWT-based authentication system
-- Password hashing with bcryptjs
-- CORS protection and error handling
-
-✅ **Database Design**
-- User management with anonymous names
-- Chat room structure with expiration
-- Message storage with encryption flags
-- Proper foreign key relationships
-
-✅ **API Endpoints**
-- User registration and login
-- Health checks and status monitoring
-- Current user information retrieval
-- Database connection testing
-
-✅ **Frontend Interface**
-- Complete HTML/CSS/JavaScript interface
-- User registration and login forms
-- Dashboard with user information
-- Responsive design for mobile devices
-- JWT token management with localStorage
-
-✅ **Security & Validation**
-- Input validation for all API requests
-- Secure password storage
-- JWT token generation and verification
-- Anonymous name uniqueness checking
-- SQL injection protection
+**Examples**: `SilentWolf456`, `BraveEagle789`, `MysticDragon123`
 
 ## 🚀 Application Status
 
-✅ **RUNNING**: The application is now fully functional and accessible at:
-- **Frontend**: http://localhost:3000
-- **API**: http://localhost:3000/health
+✅ **RUNNING**: Enhanced application accessible at:
+- **Modern Auth Interface**: http://localhost:8080/auth.html ⭐ **Recommended**
+- **Original Interface**: http://localhost:8080/index.html
+- **API Health Check**: http://localhost:8080/health
+
+## 🧪 Step 2 Features Implemented
+
+✅ **Enhanced Authentication Service**
+- JWT access tokens (1 hour) + refresh tokens (7 days)
+- Advanced password validation with strength requirements
+- Rate limiting with progressive lockout
+- Anonymous name generation with uniqueness checking
+- Token refresh and revocation system
+
+✅ **Security Enhancements**
+- Helmet.js security headers
+- Express rate limiting middleware
+- Input sanitization and validation
+- Trust proxy configuration for cloud deployment
+- CORS protection with configurable origins
+
+✅ **Advanced API Routes**
+- Token refresh endpoint for seamless UX
+- Logout with token revocation
+- Logout from all devices functionality
+- Enhanced error responses with lockout information
+
+✅ **Modern Frontend Interface**
+- Responsive design with mobile optimization
+- Dark/light theme toggle with persistence
+- Real-time form validation with visual feedback
+- Password strength meter with requirements display
+- Loading states and error handling
+- Automatic token refresh in background
+
+✅ **Enhanced User Experience**
+- Progressive form validation
+- Visual password strength indicator
+- Smooth animations and transitions
+- Accessible design with ARIA labels
+- Persistent login state across browser sessions
 
 ## 🔧 Configuration
 
-### Database
-- **Type**: SQLite (`anon_connect.db`)
-- **Auto-creation**: Tables created automatically on startup
-- **Location**: Root directory of project
+### Environment Variables
+```env
+SECRET_KEY=your-super-secret-key-change-this-in-production
+REFRESH_SECRET_KEY=your-refresh-secret-key-change-this-in-production
+ACCESS_TOKEN_EXPIRE=1h
+REFRESH_TOKEN_EXPIRE=7d
+ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
+PORT=8080
+```
 
-### Security
-- **JWT Secret**: Change `SECRET_KEY` in .env for production
-- **Token Expiry**: 30 minutes (configurable in server.js)
-- **Password Requirements**: Minimum 6 characters
-- **CORS**: Currently allows all origins (configure for production)
+### Security Settings
+- **JWT Secrets**: Separate keys for access and refresh tokens
+- **Token Expiry**: Configurable expiration times
+- **Rate Limits**: Adjustable per-route rate limiting
+- **CORS Origins**: Configurable allowed origins for production
 
-### Server
-- **Port**: 3000 (configurable via PORT environment variable)
-- **Static Files**: Served from `public/` directory
-- **Logging**: Console logging for requests and errors
+## 🎉 Next Steps (Steps 3-5)
 
-## 🎉 Next Steps (Steps 2-5)
+This completes **Steps 1 & 2: Foundation, Database & Enhanced Authentication**. Ready for:
 
-This completes **Step 1: Project Foundation & Database Setup**. The application is now ready for:
+- **Step 3**: Real-time chat functionality with WebSocket
+- **Step 4**: Anonymous matching system and chat rooms
+- **Step 5**: Message encryption and advanced features
 
-- **Step 2**: Real-time chat functionality with WebSocket
-- **Step 3**: Anonymous matching system
-- **Step 4**: Chat room management and message encryption
-- **Step 5**: Enhanced frontend and deployment features
-
-The foundation is solid and the application is running successfully! 🚀
+The authentication system is now production-ready with comprehensive security measures! 🚀
