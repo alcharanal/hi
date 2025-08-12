@@ -6,15 +6,27 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const AuthService = require('./auth');
+const ConnectionManager = require('./chat');
 require('dotenv').config();
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 const PORT = process.env.PORT || 8080;
 const SECRET_KEY = process.env.SECRET_KEY || 'your-super-secret-key-change-this-in-production';
 
-// Initialize auth service
+// Initialize services
 const authService = new AuthService();
+const connectionManager = new ConnectionManager();
 
 // Security middleware
 app.use(helmet({
@@ -519,16 +531,126 @@ app.get('/db/status', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Socket.io WebSocket handlers
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      throw new Error('No authentication token provided');
+    }
+
+    const decoded = await authService.verifyAccessToken(token);
+    const user = await authService.getUserById(decoded.userId);
+
+    if (!user || !user.is_active) {
+      throw new Error('User not found or inactive');
+    }
+
+    socket.userId = user.id;
+    socket.userProfile = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      anonymousName: user.anonymous_name
+    };
+
+    next();
+  } catch (error) {
+    console.error('Socket authentication error:', error.message);
+    next(new Error('Authentication failed'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const userId = socket.userId;
+  const userProfile = socket.userProfile;
+
+  console.log(`Socket connected: ${userProfile.anonymousName} (${userId})`);
+
+  // Add connection to manager
+  connectionManager.addConnection(userId, socket, userProfile);
+
+  // Message handling
+  socket.on('sendMessage', async (data) => {
+    try {
+      const result = await connectionManager.handleMessage(userId, data);
+      if (result.success) {
+        socket.emit('messageConfirmed', { messageId: data.tempId, actualId: result.message.id });
+      } else {
+        socket.emit('messageError', { error: result.error, tempId: data.tempId });
+      }
+    } catch (error) {
+      console.error('Message handling error:', error);
+      socket.emit('messageError', { error: 'Failed to send message', tempId: data.tempId });
+    }
+  });
+
+  // Typing indicators
+  socket.on('typingStart', () => {
+    connectionManager.handleTypingStart(userId);
+  });
+
+  socket.on('typingStop', () => {
+    connectionManager.handleTypingStop(userId);
+  });
+
+  // Room management
+  socket.on('leaveQueue', () => {
+    connectionManager.removeFromWaitingQueue(userId);
+    socket.emit('queueLeft');
+  });
+
+  socket.on('joinQueue', () => {
+    connectionManager.addToWaitingQueue(userId);
+  });
+
+  socket.on('leaveRoom', () => {
+    const roomId = connectionManager.userRooms.get(userId);
+    if (roomId) {
+      connectionManager.leaveRoom(userId, roomId);
+      socket.emit('roomLeft');
+    }
+  });
+
+  // Heartbeat/keepalive
+  socket.on('ping', () => {
+    socket.emit('pong');
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', (reason) => {
+    console.log(`Socket disconnected: ${userProfile.anonymousName} (${userId}) - Reason: ${reason}`);
+    connectionManager.removeConnection(userId);
+  });
+
+  // Error handling
+  socket.on('error', (error) => {
+    console.error(`Socket error for ${userProfile.anonymousName} (${userId}):`, error);
+  });
+});
+
+// Chat statistics endpoint
+app.get('/chat/stats', (req, res) => {
+  const stats = connectionManager.getStats();
+  res.json({
+    success: true,
+    data: stats
+  });
+});
+
+// Start server with Socket.io
+server.listen(PORT, () => {
   console.log(`🚀 Anon-Connect server running on http://localhost:${PORT}`);
   console.log(`📋 Available endpoints:`);
   console.log(`   GET  /health - Health check`);
   console.log(`   GET  / - Welcome message`);
+  console.log(`   GET  /chat.html - Real-time chat interface`);
   console.log(`   POST /auth/register - User registration`);
   console.log(`   POST /auth/login - User login`);
   console.log(`   GET  /auth/me - Current user info`);
   console.log(`   GET  /db/status - Database status`);
+  console.log(`   GET  /chat/stats - Chat system statistics`);
+  console.log(`🔌 WebSocket server ready for connections`);
 });
 
 // Graceful shutdown
