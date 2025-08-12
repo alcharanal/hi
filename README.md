@@ -181,9 +181,9 @@ anon-connect/
 ## 🚀 Application Status
 
 ✅ **RUNNING**: Enhanced application accessible at:
-- **Modern Auth Interface**: http://localhost:8080/auth.html ⭐ **Recommended**
-- **Original Interface**: http://localhost:8080/index.html
-- **API Health Check**: http://localhost:8080/health
+- **Modern Auth Interface**: /auth.html ⭐ **Recommended**
+- **Original Interface**: /index.html
+- **API Health Check**: /health
 
 ## 🧪 Step 2 Features Implemented
 
