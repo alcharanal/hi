@@ -1059,6 +1059,27 @@ app.get('/admin/audit', authenticateAdmin, async (req, res) => {
 // END ADMIN ROUTES
 // =============================================================================
 
+// CSP violation reporting
+app.use(securityConfig.getCSPReporter());
+
+// 404 handler
+app.use('*', (req, res) => {
+  errorHandler.log('WARN', `404 - Resource not found: ${req.originalUrl}`, {
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+
+  res.status(404).json({
+    success: false,
+    message: 'Resource not found'
+  });
+});
+
+// Global error handler (must be last)
+app.use(errorHandler.expressErrorHandler());
+
 // Start server with Socket.io
 server.listen(PORT, () => {
   console.log(`🚀 Anon-Connect server running on http://localhost:${PORT}`);
