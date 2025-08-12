@@ -205,11 +205,9 @@ class ErrorHandler {
     requestLogger() {
         return (req, res, next) => {
             const start = Date.now();
-            
-            // Capture original end function
-            const originalEnd = res.end;
-            
-            res.end = function(...args) {
+
+            // Use finish event instead of overriding res.end to avoid conflicts
+            res.on('finish', () => {
                 const duration = Date.now() - start;
                 const metadata = {
                     method: req.method,
@@ -229,10 +227,7 @@ class ErrorHandler {
                 } else {
                     this.log('INFO', `Request completed`, metadata);
                 }
-
-                // Call original end function
-                originalEnd.apply(this, args);
-            }.bind(this);
+            });
 
             next();
         };
