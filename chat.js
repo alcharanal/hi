@@ -2,6 +2,7 @@ const Filter = require('bad-words');
 const emojiRegex = require('emoji-regex');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const AIService = require('./ai-service');
 
 class ConnectionManager {
     constructor() {
@@ -11,16 +12,22 @@ class ConnectionManager {
         this.waitingQueue = []; // users waiting for a match
         this.typingUsers = new Map(); // roomId -> Set of typing userIds
         this.userProfiles = new Map(); // userId -> {username, anonymousName, etc}
-        
+
         // Initialize profanity filter
         this.filter = new Filter();
-        
+
+        // Initialize AI service
+        this.aiService = new AIService();
+
         // Initialize database connection
         this.dbPath = path.join(__dirname, 'anon_connect.db');
         this.db = new sqlite3.Database(this.dbPath);
-        
+
         // Cleanup expired rooms every 5 minutes
         setInterval(() => this.cleanupExpiredRooms(), 5 * 60 * 1000);
+
+        // AI cleanup every 30 minutes
+        setInterval(() => this.aiService.cleanup(), 30 * 60 * 1000);
     }
 
     // User connection management
@@ -150,22 +157,22 @@ class ConnectionManager {
         }
     }
 
-    // Message handling
+    // Enhanced message handling with AI analysis
     async handleMessage(userId, messageData) {
         const roomId = this.userRooms.get(userId);
         const room = this.rooms.get(roomId);
         const userProfile = this.userProfiles.get(userId);
-        
+
         if (!room || !userProfile || !room.isActive) {
             return { success: false, error: 'Invalid room or user' };
         }
-        
+
         // Validate message
         const validation = this.validateMessage(messageData.content);
         if (!validation.isValid) {
             return { success: false, error: validation.error };
         }
-        
+
         // Create message object
         const message = {
             id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -177,16 +184,52 @@ class ConnectionManager {
             timestamp: new Date().toISOString(),
             type: 'message'
         };
-        
+
+        // AI Analysis
+        const partnerId = this.getRoomPartnerId(userId, roomId);
+        const analysis = await this.aiService.analyzeMessage(message, {
+            userId: userId,
+            chatId: roomId,
+            partnerId: partnerId
+        });
+
+        // Check for toxicity and moderate if necessary
+        if (analysis && analysis.toxicity.isToxic) {
+            console.log(`Toxic message detected from user ${userId}`);
+
+            // Send warning to user
+            const socket = this.connections.get(userId);
+            if (socket) {
+                socket.emit('moderationWarning', {
+                    type: 'toxicity',
+                    message: 'Your message contains inappropriate content and was not sent.',
+                    severity: analysis.toxicity.score
+                });
+            }
+
+            return { success: false, error: 'Message blocked due to inappropriate content' };
+        }
+
+        // Add AI analysis to message
+        if (analysis) {
+            message.aiAnalysis = analysis.toJSON();
+        }
+
         // Add to room and persist
         room.messages.push(message);
         await this.saveMessageToDatabase(message);
-        
+
         // Broadcast to room participants
         this.broadcastToRoom(roomId, 'newMessage', message);
-        
+
+        // Generate and send AI insights
+        if (analysis) {
+            await this.sendAIInsights(userId, roomId);
+            await this.updateCompatibilityScore(userId, partnerId, roomId);
+        }
+
         console.log(`Message sent in room ${roomId} by ${userProfile.anonymousName}`);
-        return { success: true, message };
+        return { success: true, message, analysis };
     }
 
     // Typing indicators
@@ -265,22 +308,44 @@ class ConnectionManager {
         }
     }
 
-    tryMatching() {
+    async tryMatching() {
         if (this.waitingQueue.length < 2) return;
-        
-        // Simple random matching for MVP
+
+        // AI-powered smart matching
         const user1Id = this.waitingQueue.shift();
-        const user2Id = this.waitingQueue.shift();
-        
-        // Create room and join users
-        const roomId = this.createRoom(user1Id, user2Id);
-        
-        // Join both users to the room
-        this.joinRoom(user1Id, roomId);
-        this.joinRoom(user2Id, roomId);
-        
-        console.log(`Matched users ${user1Id} and ${user2Id} in room ${roomId}`);
-        
+        const remainingUsers = [...this.waitingQueue];
+
+        let user2Id;
+        if (remainingUsers.length > 0) {
+            // Use AI service to find best match
+            user2Id = await this.aiService.findBestMatch(user1Id, remainingUsers);
+
+            // Remove matched user from queue
+            const user2Index = this.waitingQueue.indexOf(user2Id);
+            if (user2Index > -1) {
+                this.waitingQueue.splice(user2Index, 1);
+            }
+        }
+
+        // Fallback to random if AI matching fails
+        if (!user2Id && this.waitingQueue.length > 0) {
+            user2Id = this.waitingQueue.shift();
+        }
+
+        if (user2Id) {
+            // Create room and join users
+            const roomId = this.createRoom(user1Id, user2Id);
+
+            // Join both users to the room
+            this.joinRoom(user1Id, roomId);
+            this.joinRoom(user2Id, roomId);
+
+            console.log(`AI-matched users ${user1Id} and ${user2Id} in room ${roomId}`);
+
+            // Send initial compatibility score
+            setTimeout(() => this.updateCompatibilityScore(user1Id, user2Id, roomId), 2000);
+        }
+
         // Continue matching if more users waiting
         if (this.waitingQueue.length >= 2) {
             setTimeout(() => this.tryMatching(), 1000);
