@@ -16,9 +16,50 @@ const SECRET_KEY = process.env.SECRET_KEY || 'your-super-secret-key-change-this-
 // Initialize auth service
 const authService = new AuthService();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
+// Rate limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: {
+    success: false,
+    message: 'Too many authentication attempts, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    message: 'Too many requests, please try again later.'
+  }
+});
+
+// Apply rate limiting
+app.use('/auth', authLimiter);
+app.use(generalLimiter);
+
+// CORS and body parsing middleware
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+  credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
 // Database setup
@@ -83,22 +124,33 @@ function generateAnonymousName() {
   return `${adjective}${animal}${number}`;
 }
 
-// Middleware to verify JWT token
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// Enhanced middleware to verify JWT token
+async function authenticateToken(req, res, next) {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'Access token required' });
-  }
-
-  jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) {
-      return res.status(403).json({ success: false, message: 'Invalid or expired token' });
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Access token required' });
     }
-    req.user = user;
+
+    const decoded = await authService.verifyAccessToken(token);
+    const user = await authService.getUserById(decoded.userId);
+
+    if (!user || !user.is_active) {
+      return res.status(401).json({ success: false, message: 'User not found or inactive' });
+    }
+
+    req.user = {
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      anonymousName: user.anonymous_name
+    };
     next();
-  });
+  } catch (error) {
+    return res.status(403).json({ success: false, message: 'Invalid or expired token' });
+  }
 }
 
 // Routes
