@@ -59,14 +59,51 @@ No additional setup required! 🎉
 
 ## 🚨 Troubleshooting
 
-If you can't see anything:
-1. Make sure you're accessing http://localhost:3002 (not 3000 or 8080)
-2. Check that port 3002 is not blocked by firewall
-3. Wait 10-15 seconds for the server to fully start
-4. Refresh your browser
+If you can't see anything, try these steps in order:
 
-The server is ready when you see:
+### Step 1: Check the correct URL
+- ✅ **CORRECT**: http://localhost:3002
+- ❌ **WRONG**: http://localhost:3000 or http://localhost:8080
+
+### Step 2: Wait for server startup
+The server needs 10-15 seconds to fully initialize. Look for this message:
 ```
 🚀 Anon-Connect server running on http://localhost:3002
 📚 API Documentation: http://localhost:3002/api/docs
+🔐 Admin credentials: admin123 / admin321
 ```
+
+### Step 3: Clear browser cache
+- Press `Ctrl+F5` (Windows/Linux) or `Cmd+Shift+R` (Mac)
+- Or open in incognito/private browsing mode
+
+### Step 4: Check server status
+Run this command to verify the server is working:
+```bash
+curl http://localhost:3002/health
+```
+You should see: `{"success":true,"message":"Anon-Connect API is running successfully!"}`
+
+### Step 5: Try different browsers
+- Chrome: http://localhost:3002
+- Firefox: http://localhost:3002
+- Safari: http://localhost:3002
+- Edge: http://localhost:3002
+
+### Step 6: Check if port is in use
+```bash
+netstat -tlnp | grep 3002
+```
+
+### Step 7: Restart the server
+```bash
+# Stop with Ctrl+C, then restart
+npm start
+```
+
+## 🔍 Quick Health Check
+
+Server is working if you can access:
+- ✅ http://localhost:3002/health (API health)
+- ✅ http://localhost:3002 (Landing page)
+- ✅ http://localhost:3002/api/docs (API documentation)
