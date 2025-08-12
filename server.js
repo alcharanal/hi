@@ -41,51 +41,39 @@ const errorHandler = new ErrorHandler();
 securityConfig.validateEnvironment();
 errorHandler.setupGracefulShutdown();
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}));
-
-// Rate limiting
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many authentication attempts, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many requests, please try again later.'
-  }
-});
-
-// Trust proxy for rate limiting
+// Trust proxy for proper IP detection
 app.set('trust proxy', 1);
 
-// Apply rate limiting
-app.use('/auth', authLimiter);
-app.use(generalLimiter);
+// Compression middleware
+app.use(compression());
 
-// CORS and body parsing middleware
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-  credentials: true
-}));
+// Security middleware
+app.use(helmet(securityConfig.helmetConfig));
+app.use(securityConfig.getSecurityHeaders());
+app.use(securityConfig.getRequestLogger());
+app.use(securityConfig.detectSuspiciousActivity());
+
+// CORS with enhanced security
+app.use(cors(securityConfig.getCORSOptions()));
+
+// Request logging
+app.use(errorHandler.requestLogger());
+
+// General rate limiting
+app.use(securityConfig.rateLimitConfigs.general);
+app.use(securityConfig.speedLimitConfigs.general);
+
+// Authentication rate limiting
+const authLimiter = securityConfig.rateLimitConfigs.auth;
+const adminAuthLimiter = securityConfig.rateLimitConfigs.adminAuth;
+const registrationLimiter = securityConfig.rateLimitConfigs.registration;
+
+// Apply specific rate limiting
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', registrationLimiter);
+app.use('/admin/login', adminAuthLimiter);
+
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
