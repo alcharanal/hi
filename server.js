@@ -6,12 +6,15 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const compression = require('compression');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const AuthService = require('./auth');
 const ConnectionManager = require('./chat');
 const AdminService = require('./admin');
 const MonitoringService = require('./monitoring');
+const SecurityConfig = require('./security-config');
+const ErrorHandler = require('./error-handler');
 require('dotenv').config();
 
 const app = express();
