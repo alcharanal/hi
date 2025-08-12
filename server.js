@@ -1069,12 +1069,16 @@ server.listen(PORT, () => {
   console.log(`   GET  /health - Health check`);
   console.log(`   GET  / - Welcome message`);
   console.log(`   GET  /chat.html - Real-time chat interface`);
+  console.log(`   GET  /admin.html - Admin dashboard`);
   console.log(`   POST /auth/register - User registration`);
   console.log(`   POST /auth/login - User login`);
   console.log(`   GET  /auth/me - Current user info`);
+  console.log(`   POST /admin/login - Admin authentication`);
+  console.log(`   GET  /admin/stats - Admin dashboard stats`);
   console.log(`   GET  /db/status - Database status`);
   console.log(`   GET  /chat/stats - Chat system statistics`);
   console.log(`🔌 WebSocket server ready for connections`);
+  console.log(`🔐 Admin credentials: admin123 / admin321`);
 });
 
 // Graceful shutdown
