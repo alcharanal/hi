@@ -10,6 +10,8 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const AuthService = require('./auth');
 const ConnectionManager = require('./chat');
+const AdminService = require('./admin');
+const MonitoringService = require('./monitoring');
 require('dotenv').config();
 
 const app = express();
