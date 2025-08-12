@@ -252,7 +252,7 @@ class AuthManager {
         } else {
             emailGroup.style.display = 'none';
             authBtn.textContent = 'Sign In';
-            switchText.textContent = \"Don't have an account?\";
+            switchText.textContent = "Don't have an account?";
             switchLink.textContent = 'Create Account';
             strengthContainer.style.display = 'none';
             document.getElementById('password').setAttribute('autocomplete', 'current-password');
