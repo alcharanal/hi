@@ -6,6 +6,8 @@
 npm start
 ```
 
+> **Note**: A `.env` file with safe defaults is automatically created for you!
+
 ## ✅ Verify It's Working
 
 After running `npm start`, test with:
@@ -13,6 +15,21 @@ After running `npm start`, test with:
 curl http://localhost:3002/health
 ```
 Should return: `{"success":true,"message":"Anon-Connect API is running successfully!"}`
+
+## 🔧 Environment Setup (Optional)
+
+The app runs with safe defaults, but you can customize:
+
+```bash
+# Development (default)
+npm run dev
+
+# Production mode
+npm run prod
+
+# Run tests
+npm test
+```
 
 That's it! The application will automatically:
 - Install dependencies if needed
