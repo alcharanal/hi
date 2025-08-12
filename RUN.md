@@ -1,10 +1,18 @@
 # 🚀 Anon-Connect - Quick Start
 
-## Run the Project in One Command
+## ⚡ Run the Project in One Command
 
 ```bash
 npm start
 ```
+
+## ✅ Verify It's Working
+
+After running `npm start`, test with:
+```bash
+curl http://localhost:3002/health
+```
+Should return: `{"success":true,"message":"Anon-Connect API is running successfully!"}`
 
 That's it! The application will automatically:
 - Install dependencies if needed
