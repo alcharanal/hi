@@ -34,6 +34,12 @@ const authService = new AuthService();
 const connectionManager = new ConnectionManager();
 const adminService = new AdminService();
 const monitoringService = new MonitoringService();
+const securityConfig = new SecurityConfig();
+const errorHandler = new ErrorHandler();
+
+// Validate environment and setup graceful shutdown
+securityConfig.validateEnvironment();
+errorHandler.setupGracefulShutdown();
 
 // Security middleware
 app.use(helmet({
