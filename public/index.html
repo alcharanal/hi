@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anon-Connect - Anonymous Chat Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .switch-btn {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .switch-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .dashboard {
+            display: none;
+        }
+        
+        .user-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .anonymous-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .endpoints {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .endpoint {
+            margin-bottom: 10px;
+            font-family: monospace;
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 4px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🔒 Anon-Connect</div>
+            <div class="subtitle">Anonymous Chat Platform</div>
+        </div>
+        
+        <div id="status-message" class="status" style="display: none;"></div>
+        
+        <div id="auth-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Enter your username" required>
+            </div>
+            
+            <div class="form-group" id="email-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="Enter your email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+            
+            <button id="auth-btn" onclick="handleAuth()">Register</button>
+            <button class="switch-btn" onclick="switchMode()">Already have an account? Login</button>
+        </div>
+        
+        <div id="dashboard" class="dashboard">
+            <div class="user-info">
+                <h3>Welcome!</h3>
+                <div id="user-details"></div>
+            </div>
+            
+            <button onclick="logout()">Logout</button>
+            
+            <div class="endpoints">
+                <h4>API Endpoints Available:</h4>
+                <div class="endpoint">GET /health - Health check</div>
+                <div class="endpoint">POST /auth/register - User registration</div>
+                <div class="endpoint">POST /auth/login - User login</div>
+                <div class="endpoint">GET /auth/me - Current user info</div>
+                <div class="endpoint">GET /db/status - Database status</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRegisterMode = true;
+        let authToken = localStorage.getItem('authToken');
+        
+        // Check if user is already logged in
+        if (authToken) {
+            checkAuthStatus();
+        }
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        function switchMode() {
+            isRegisterMode = !isRegisterMode;
+            const emailGroup = document.getElementById('email-group');
+            const authBtn = document.getElementById('auth-btn');
+            const switchBtn = document.querySelector('.switch-btn');
+            
+            if (isRegisterMode) {
+                emailGroup.style.display = 'block';
+                authBtn.textContent = 'Register';
+                switchBtn.textContent = 'Already have an account? Login';
+            } else {
+                emailGroup.style.display = 'none';
+                authBtn.textContent = 'Login';
+                switchBtn.textContent = "Don't have an account? Register";
+            }
+        }
+        
+        async function handleAuth() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showStatus('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            if (isRegisterMode && !email) {
+                showStatus('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const endpoint = isRegisterMode ? '/auth/register' : '/auth/login';
+            const body = isRegisterMode ? { username, email, password } : { username, password };
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (isRegisterMode) {
+                        showStatus('Registration successful! Please login.', 'success');
+                        switchMode();
+                    } else {
+                        authToken = data.access_token;
+                        localStorage.setItem('authToken', authToken);
+                        showDashboard();
+                        showStatus('Login successful!', 'success');
+                    }
+                } else {
+                    showStatus(data.message || 'Authentication failed', 'error');
+                }
+            } catch (error) {
+                showStatus('Network error. Please try again.', 'error');
+            }
+        }
+        
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    showDashboard();
+                } else {
+                    localStorage.removeItem('authToken');
+                    authToken = null;
+                }
+            } catch (error) {
+                localStorage.removeItem('authToken');
+                authToken = null;
+            }
+        }
+        
+        async function showDashboard() {
+            try {
+                const response = await fetch('/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const userDetails = document.getElementById('user-details');
+                    userDetails.innerHTML = `
+                        <div class="anonymous-name">Anonymous Name: ${data.user.anonymous_name}</div>
+                        <div>Username: ${data.user.username}</div>
+                        <div>Email: ${data.user.email}</div>
+                        <div>Member since: ${new Date(data.user.created_at).toLocaleDateString()}</div>
+                    `;
+                    
+                    document.getElementById('auth-form').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                } else {
+                    logout();
+                }
+            } catch (error) {
+                logout();
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('authToken');
+            authToken = null;
+            document.getElementById('auth-form').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            showStatus('Logged out successfully', 'success');
+        }
+        
+        // Enter key support
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleAuth();
+            }
+        });
+    </script>
+</body>
+</html>
