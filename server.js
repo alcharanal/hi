@@ -612,6 +612,42 @@ io.on('connection', (socket) => {
     }
   });
 
+  // AI-related events
+  socket.on('updatePrivacySettings', (data) => {
+    connectionManager.setUserPrivacySettings(userId, data.settings);
+    socket.emit('privacySettingsUpdated', { settings: data.settings });
+  });
+
+  socket.on('getTopicSuggestions', (data) => {
+    const roomId = connectionManager.userRooms.get(userId);
+    if (roomId) {
+      const suggestions = connectionManager.getTopicSuggestions(roomId, data.context);
+      socket.emit('topicSuggestions', { suggestions });
+    }
+  });
+
+  socket.on('topicSuggestionUsed', (data) => {
+    // Track topic suggestion usage for improvement
+    console.log(`Topic suggestion ${data.topicId} used by ${userId}, success: ${data.success}`);
+  });
+
+  socket.on('getMoodAnalysis', async () => {
+    const roomId = connectionManager.userRooms.get(userId);
+    if (roomId) {
+      const mood = await connectionManager.getMoodAnalysis(userId, roomId);
+      if (mood) {
+        socket.emit('moodUpdate', mood.toJSON());
+      }
+    }
+  });
+
+  socket.on('requestAIInsights', async () => {
+    const roomId = connectionManager.userRooms.get(userId);
+    if (roomId) {
+      await connectionManager.sendAIInsights(userId, roomId);
+    }
+  });
+
   // Heartbeat/keepalive
   socket.on('ping', () => {
     socket.emit('pong');
