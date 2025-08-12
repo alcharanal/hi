@@ -347,6 +347,18 @@ class SecurityConfig {
 
     // Environment validation
     validateEnvironment() {
+        // Set default NODE_ENV if not provided
+        if (!process.env.NODE_ENV) {
+            process.env.NODE_ENV = 'development';
+            console.log('ℹ️  NODE_ENV not set, defaulting to "development"');
+        }
+
+        // Set default SECRET_KEY if not provided
+        if (!process.env.SECRET_KEY) {
+            process.env.SECRET_KEY = 'default-secret-key-change-in-production-' + Date.now();
+            console.log('⚠️  SECRET_KEY not set, using default (change for production!)');
+        }
+
         const required = [
             'SECRET_KEY',
             'NODE_ENV'
