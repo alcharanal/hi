@@ -15,6 +15,7 @@ const AdminService = require('./admin');
 const MonitoringService = require('./monitoring');
 const SecurityConfig = require('./security-config');
 const ErrorHandler = require('./error-handler');
+const { setupSwagger } = require('./swagger');
 require('dotenv').config();
 
 const app = express();
