@@ -4,11 +4,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const AuthService = require('./auth');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.SECRET_KEY || 'your-super-secret-key-change-this-in-production';
+
+// Initialize auth service
+const authService = new AuthService();
 
 // Middleware
 app.use(cors());
