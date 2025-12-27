@@ -1,0 +1,49 @@
+{
+  "name": "anon-connect",
+  "version": "1.0.0",
+  "description": "Anonymous Chat Platform",
+  "main": "server.js",
+  "scripts": {
+    "dev": "NODE_ENV=development node server.js",
+    "start": "node fix-errors.js && NODE_ENV=development node server.js",
+    "start:fast": "NODE_ENV=development node server.js",
+    "prod": "NODE_ENV=production node server.js",
+    "test": "node test-suite.js",
+    "check": "node startup-check.js",
+    "fix": "node fix-errors.js"
+  },
+  "dependencies": {
+    "bad-words": "^3.0.4",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "compromise": "^14.14.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "emoji-regex": "^10.3.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-slow-down": "^3.0.0",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "natural": "^6.12.0",
+    "node-cache": "^5.1.2",
+    "openai": "^4.104.0",
+    "sentiment": "^5.0.2",
+    "socket.io": "^4.7.5",
+    "sqlite3": "^5.1.6",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "validator": "^13.15.15",
+    "ws": "^8.18.3",
+    "xss": "^1.0.15"
+  },
+  "keywords": [
+    "chat",
+    "anonymous",
+    "fastapi",
+    "node"
+  ],
+  "author": "Anon-Connect",
+  "license": "MIT"
+}
